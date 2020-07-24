@@ -18,9 +18,10 @@ while cap.isOpened():
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5,5), 0)
     _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
-    dilated = cv2.dilate(thresh, None, iterations=3)
+    erode = cv2.erode(thresh.copy(), None, iterations=5)
+    dilated = cv2.dilate(erode, None, iterations=5)
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
+    
     for contour in contours:
         c = max(contours, key = cv2.contourArea)
         (x, y, w, h) = cv2.boundingRect(c)

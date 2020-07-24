@@ -1,5 +1,9 @@
 import cv2
 import numpy as np
+import imutils
+
+from imutils.video import FPS
+
 
 cap = cv2.VideoCapture(0)
 frame_width = int( cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -18,8 +22,9 @@ while cap.isOpened():
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5,5), 0)
     _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
-    dilated = cv2.dilate(thresh, None, iterations=3)
-    contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    erode = cv2.erode(thresh.copy(), None, iterations=10)
+    dilated = cv2.dilate(erode, None, iterations=10)
+    contours, _ = cv2.findContours(dilated.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contours) != 0:
         # draw in blue the contours that were founded
@@ -33,11 +38,14 @@ while cap.isOpened():
         if x > 50:
             cv2.rectangle(frame1,(x,y),(x+w,y+h),(0,255,0),2)
 
-    image = cv2.resize(frame1, (720, 480))
+    image = imutils.resize(frame1, width=850)
     out.write(image)
     cv2.imshow("feed", image)
     frame1 = frame2
     _, frame2 = cap.read()
+
+    fps = FPS().start()
+    fps.update()
 
     if cv2.waitKey(20) & 0xFF == ord('q'):
         break

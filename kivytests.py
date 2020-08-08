@@ -3,9 +3,16 @@ from kivy.app import App
 from kivy.uix.image import Image
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
+from imutils.video import FPS
+
+from kivy.uix.gridlayout import GridLayout 
+from kivy.uix.button import Button, Label
+
+from kivy.uix.behaviors import ButtonBehavior
+
+import kivy 
 import cv2
-
-
+	    
 class KivyCamera(Image):
     def __init__(self, capture, fps, **kwargs):
         super(KivyCamera, self).__init__(**kwargs)
@@ -14,7 +21,8 @@ class KivyCamera(Image):
         self.notify = []
 
     def update(self, dt):
-        
+        fps = FPS().start()
+
         _, frame1 = self.capture.read()
         _, frame2 = self.capture.read()
         diff = cv2.absdiff(frame1, frame2)
@@ -28,13 +36,14 @@ class KivyCamera(Image):
         if len(contours) != 0:
             c = max(contours, key = cv2.contourArea)
             x,y,w,h = cv2.boundingRect(c)
-            cv2.rectangle(frame1,(x,y),(x+w*2,y+h*2),(0,0,255),2)
+            cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,0,255),2)
             cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,255,0),2)
             self.notify.append([x,y,w,h])
-            print(self.notify)
             #print('Detected Motion')
         
         frame1 = frame2
+        fps.update()
+            
         buf1 = cv2.flip(frame1, 0)
         buf = buf1.tobytes()
         image_texture = Texture.create(
@@ -60,6 +69,30 @@ class KivyCamera(Image):
                 self.freeSpace()
                 sys.exit()
 
+class Grid_LayoutApp(App): 
+
+    # to build the application we have to 
+    # return a widget on the build() function. 
+    def build(self):
+
+        # adding GridLayouts in App
+        # Defining number of coloumn
+        # You can use row as well depends on need
+        layout = GridLayout(cols = 2)
+
+        # 1st row
+        self.capture = cv2.VideoCapture(0)
+        layout.add_widget(KivyCamera(capture=self.capture, fps=120))
+
+        layout.add_widget(Button(text ='Notifications'))
+  
+        # 2nd row 
+        layout.add_widget(Button(text ='Menu'))
+  
+  
+        # returning the layout 
+        return layout
+
 
 class CamApp(App):
     def build(self):
@@ -72,4 +105,5 @@ class CamApp(App):
 
 
 if __name__ == '__main__':
+    Grid_LayoutApp().run()
     CamApp().run()

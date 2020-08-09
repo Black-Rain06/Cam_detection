@@ -1,23 +1,30 @@
 
 WindowManager:
     MainWindow:
-    SecondWindow:
+    NotificationWindow:
+    MenuWindow:
 
 <MainWindow>:
     name: "main"
 
+
+
     GridLayout:
-        cols: 1
+        cols: 2
+        height: "50dp"
+        size_hint_y: None
+        Button:
+            text: "Notifications"
+            on_release: app.root.current = "second"
 
-        GridLayout:
-            cols: 2
+        Button:
+            text: "Menu"
 
-            Button:
-                text: "Notifications"
-                on_release: app.root.current = "second"
-
-            Button:
-                text: "Menu"
-
-<SecondWindow>:
+<NotificationWindow>:
     name: "second"
+
+<MenuWindow>:
+    name: "third"
+
+    Label:
+        text: "You Made it!!"

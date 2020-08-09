@@ -12,13 +12,15 @@ from kivy.uix.behaviors import ButtonBehavior
 
 import kivy 
 import cv2
-	    
+
+
+notify = []
+
 class KivyCamera(Image):
     def __init__(self, capture, fps, **kwargs):
         super(KivyCamera, self).__init__(**kwargs)
         self.capture = capture
         Clock.schedule_interval(self.update, 1.0 / fps)
-        self.notify = []
 
     def update(self, dt):
         fps = FPS().start()
@@ -38,7 +40,7 @@ class KivyCamera(Image):
             x,y,w,h = cv2.boundingRect(c)
             cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,0,255),2)
             cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,255,0),2)
-            self.notify.append([x,y,w,h])
+            notify.append([x,y,w,h])
             #print('Detected Motion')
         
         frame1 = frame2
@@ -69,41 +71,66 @@ class KivyCamera(Image):
                 self.freeSpace()
                 sys.exit()
 
-class Grid_LayoutApp(App): 
+class MainWindow(GridLayout):
+        def __init__(self, **kwargs):
+            
+                super(MainWindow, self).__init__(**kwargs)
 
-    # to build the application we have to 
-    # return a widget on the build() function. 
-    def build(self):
+                self.cols = 1
+                
+                self.submit = Button(text='submit')
+                self.capture = cv2.VideoCapture(0)
+                self.add_widget(KivyCamera(capture=self.capture, fps=120))
 
-        # adding GridLayouts in App
-        # Defining number of coloumn
-        # You can use row as well depends on need
-        layout = GridLayout(cols = 2)
+                self.inside = GridLayout()
+                self.inside.cols = 2
 
-        # 1st row
-        self.capture = cv2.VideoCapture(0)
-        layout.add_widget(KivyCamera(capture=self.capture, fps=120))
+                self.notify = Button(text='Notifications', width=10)
+                self.notify.bind(on_press=self.notify_pressed)
+                self.inside.add_widget(self.notify)
 
-        layout.add_widget(Button(text ='Notifications'))
-  
-        # 2nd row 
-        layout.add_widget(Button(text ='Menu'))
-  
-  
-        # returning the layout 
-        return layout
+                self.menu = Button(text='Menu', width=10)
+                self.inside.add_widget(self.menu)
+                self.menu.bind(on_press=self.menu_pressed)
 
+
+                self.add_widget(self.inside)
+                
+                '''
+                key = cv2.waitKey(20)
+                if key == ord('q'):
+                    running = False
+                    self.freeSpace()
+                    sys.exit()
+                    print('q')
+
+                if key == ord('m'):
+                    self.paused = True
+                    cv2.imshow(self.title, self.image)
+                    if key == ord('q'):
+                        running = False
+                        self.freeSpace()
+                        sys.exit()
+                '''
+
+        def freeSpace(self):
+            
+            cv2.destroyAllWindows()
+            self.capture.release()
+
+        def notify_pressed(self, instance):
+            for i in notify:
+                print(i)
+                print('notify pressed')
+
+        def menu_pressed(self, instance):
+            print('menu pressed')
+            
 
 class CamApp(App):
     def build(self):
-        self.capture = cv2.VideoCapture(0)
-        self.my_camera = KivyCamera(capture=self.capture, fps=120)
-        return self.my_camera
-
-    def on_stop(self):
-        self.capture.release()
+        return MainWindow()
 
 
 if __name__ == '__main__':
-    Grid_LayoutApp().run()
     CamApp().run()

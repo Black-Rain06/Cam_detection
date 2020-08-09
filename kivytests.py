@@ -8,19 +8,26 @@ from imutils.video import FPS
 from kivy.uix.gridlayout import GridLayout 
 from kivy.uix.button import Button, Label
 
-from kivy.uix.behaviors import ButtonBehavior
+from kivy.lang import Builder
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.properties import ObjectProperty
+from kivy.factory import Factory
+from kivy.uix.boxlayout import BoxLayout
 
+from datetime import datetime
 import kivy 
 import cv2
 
 
-notify = []
+notify = {}
+date = datetime.now()
 
 class KivyCamera(Image):
     def __init__(self, capture, fps, **kwargs):
         super(KivyCamera, self).__init__(**kwargs)
         self.capture = capture
         Clock.schedule_interval(self.update, 1.0 / fps)
+        self.notify = []
 
     def update(self, dt):
         fps = FPS().start()
@@ -40,7 +47,10 @@ class KivyCamera(Image):
             x,y,w,h = cv2.boundingRect(c)
             cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,0,255),2)
             cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,255,0),2)
-            notify.append([x,y,w,h])
+            self.notify.append([x,y,w,h])
+            notify[str(date)] = str([x,y,w,h])
+            #notify.append([x,y,w,h])
+            
             #print('Detected Motion')
         
         frame1 = frame2
@@ -65,53 +75,57 @@ class KivyCamera(Image):
 
         if key == ord('m'):
             self.paused = True
-            cv2.imshow(self.title, self.image)
+            cv2.imshow(selGrf.title, self.image)
             if key == ord('q'):
                 running = False
                 self.freeSpace()
                 sys.exit()
 
-class MainWindow(GridLayout):
+    def update_Notify(self):
+        return self.notify
+
+class MainWindow(Screen):
+    
         def __init__(self, **kwargs):
             
                 super(MainWindow, self).__init__(**kwargs)
 
+                self.cols = GridLayout()
                 self.cols = 1
                 
-                self.submit = Button(text='submit')
-                self.capture = cv2.VideoCapture(0)
-                self.add_widget(KivyCamera(capture=self.capture, fps=120))
-
+                self.cam = KivyCamera(cv2.VideoCapture(0), fps=120)
+                #self.noti = self.cam.update_Notify()
+                
                 self.inside = GridLayout()
                 self.inside.cols = 2
 
-                self.notify = Button(text='Notifications', width=10)
-                self.notify.bind(on_press=self.notify_pressed)
+                self.notify = Button(text='Notification', width=10)
+                self.notify.bind(on_release=self.notify_pressed)
                 self.inside.add_widget(self.notify)
 
                 self.menu = Button(text='Menu', width=10)
-                self.inside.add_widget(self.menu)
                 self.menu.bind(on_press=self.menu_pressed)
+                self.inside.add_widget(self.menu)
 
 
                 self.add_widget(self.inside)
                 
-                '''
-                key = cv2.waitKey(20)
-                if key == ord('q'):
-                    running = False
-                    self.freeSpace()
-                    sys.exit()
-                    print('q')
-
-                if key == ord('m'):
-                    self.paused = True
-                    cv2.imshow(self.title, self.image)
-                    if key == ord('q'):
-                        running = False
-                        self.freeSpace()
-                        sys.exit()
-                '''
+                
+##                key = cv2.waitKey(20)
+##                if key == ord('q'):
+##                    running = False
+##                    self.freeSpace()
+##                    sys.exit()
+##                    print('q')
+##
+##                if key == ord('m'):
+##                    self.paused = True
+##                    cv2.imshow(self.title, self.image)
+##                    if key == ord('q'):
+##                        running = False
+##                        self.freeSpace()
+##                        sys.exit()
+                
 
         def freeSpace(self):
             
@@ -119,18 +133,50 @@ class MainWindow(GridLayout):
             self.capture.release()
 
         def notify_pressed(self, instance):
-            for i in notify:
-                print(i)
-                print('notify pressed')
+            print('hi')
 
         def menu_pressed(self, instance):
             print('menu pressed')
-            
+    
 
+class SecondWindow(Screen):
+
+    def __init__(self, **kwargs):
+        super(SecondWindow, self).__init__(**kwargs)
+        
+        self.inside = GridLayout()
+        self.inside.cols = 2
+
+        self.notify = Button(text='Notification', width=10)
+        self.notify.bind(on_release=self.notify_pressed)
+        self.inside.add_widget(self.notify)
+
+        self.menu = Button(text='Menu', width=10)
+        self.menu.bind(on_press=self.menu_pressed)
+        self.inside.add_widget(self.menu)
+
+        self.label = Label(text='No records')
+        self.inside.add_widget(self.label)
+
+        self.add_widget(self.inside)
+
+
+    def notify_pressed(self, instance):
+        for element in notify:
+            self.label.text = element + ': ' + notify[element]
+
+    def menu_pressed(self, instance):
+        print('menu pressed')
+
+
+class WindowManager(ScreenManager):
+    pass
+
+#kv = Builder.load_file("my.kv")
 class CamApp(App):
+    
     def build(self):
-        return MainWindow()
-
+        self.load_kv("my.kv")
 
 if __name__ == '__main__':
     CamApp().run()

@@ -1,0 +1,23 @@
+
+WindowManager:
+    MainWindow:
+    SecondWindow:
+
+<MainWindow>:
+    name: "main"
+
+    GridLayout:
+        cols: 1
+
+        GridLayout:
+            cols: 2
+
+            Button:
+                text: "Notifications"
+                on_release: app.root.current = "second"
+
+            Button:
+                text: "Menu"
+
+<SecondWindow>:
+    name: "second"

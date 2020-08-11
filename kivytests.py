@@ -5,12 +5,17 @@ from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from imutils.video import FPS
 
-from kivy.uix.gridlayout import GridLayout 
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button, Label
 
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
+
+from kivy.properties import*
+
+from doorBellApp import doorBellApp
 
 
 from datetime import datetime
@@ -65,21 +70,68 @@ class KivyCamera(Image):
         cv2.destroyAllWindows()
         self.capture.release()
 
+class Devices(Screen):
+
+    def __init__(self, **kwargs):
+        
+        
+        super(Devices, self).__init__(**kwargs)
+        self.capture = doorBellApp(0)
+        self.cam = self.capture.available_dev()
+        self.num = len(self.cam)
+        layout = BoxLayout(orientation="vertical")
+        self.devs = Label(text="Detected Devices: " +str(self.num))
+        layout.add_widget(self.devs)
+        if len(self.capture.inname):
+            self.opt = Button(text=self.capture.inname)
+            self.opt.bind(on_release=self.selectDev)
+            layout.add_widget(self.opt)
+        
+        elif len(self.capture.inname) == 0 and len(self.capture.exname) == 0:
+            for i in self.capture.exname:
+                self.opt = Button(text=i)
+                self.opt.bind(on_release=self.selectDev)
+                layout.add_widget(self.opt)
+        else:
+            layout.add_widget(Label(text="No Devices Detected"))
+            
+        self.refresh = Button(text="Refresh")
+        self.refresh.bind(on_release=self.refreshDevs)
+        layout.add_widget(self.refresh)
+
+        self.add_widget(layout)
+
+    def refreshDevs(self, instance):
+        self.cam = Devices()
+        return self.cam
+
+    def selectDev(self, instance):
+        self.parent.current = 'main'
+
+class Account(Screen):
+
+    def __init__(self, **kwargs):
+            
+        super(Account, self).__init__(**kwargs)
+
+        pass 
+
 class MainWindow(Screen):
     
-        def __init__(self, **kwargs):
+    def __init__(self, **kwargs):
+        
+            super(MainWindow, self).__init__(**kwargs)
+
+            self.cols = GridLayout(cols = 1)
+
+            self.cam = kwargs = cv2.VideoCapture(0) #doorBellApp(0)
             
-                super(MainWindow, self).__init__(**kwargs)
+            self.cam = KivyCamera(capture=self.cam, fps=120)
+            self.add_widget(self.cam)
+            self.noti = self.cam.update_Notify()
 
-                self.cols = GridLayout(cols = 1)
-
-                self.cam = cv2.VideoCapture(0)
-                self.cam = KivyCamera(capture=self.cam, fps=120)
-                self.add_widget(self.cam)
-                self.noti = self.cam.update_Notify()
-
-        def menu_Switch(self, instance):
-            self.parent.current = 'third'  
+    def menu_Switch(self, instance):
+        self.parent.current = 'third'
     
 
 class NotificationWindow(Screen):
@@ -170,7 +222,7 @@ class NotificationWindow(Screen):
         self.label_thirteen.text = str(key[count-13]) + ': '+ str(value[count-13])
         self.label_fifteen.text = str(key[count-14]) + ': '+ str(value[count-14])
         
-        self.label_sixteen.text = str(key[count-16]) + ': '+ str(value[count-16])
+        self.label_sixteen.text = str(key[count-16]) + ': '+ str(vue[count-16])
         self.label_seventeen.text = str(key[count-17]) + ': '+ str(value[count-17])
         self.label_eighteen.text = str(key[count-18]) + ': '+ str(value[count-18])
         self.label_nineteen.text = str(key[count-19]) + ': '+ str(value[count-19])
@@ -197,6 +249,7 @@ class CamApp(App):
     
     def build(self):
         self.load_kv("my.kv")
+
 
 if __name__ == '__main__':
     CamApp().run()

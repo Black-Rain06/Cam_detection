@@ -35,9 +35,9 @@ class KivyCamera(Image):
     def update(self, dt):
         fps = FPS().start()
 
-        _, frame1 = self.capture.read()
-        _, frame2 = self.capture.read()
-        diff = cv2.absdiff(frame1, frame2)
+        _, self.frame1 = self.capture.read()
+        _, self.frame2 = self.capture.read()
+        diff = cv2.absdiff(self.frame1, self.frame2)
         gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(gray, (5,5), 0)
         _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
@@ -48,26 +48,26 @@ class KivyCamera(Image):
         if len(contours) != 0:
             c = max(contours, key = cv2.contourArea)
             x,y,w,h = cv2.boundingRect(c)
-            cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,0,255),2)
-            cv2.rectangle(frame2,(x,y),(x+w*2,y+h*2),(0,255,0),2)
+            cv2.rectangle(self.frame2,(x,y),(x+w*2,y+h*2),(0,0,255),4)
             self.notify.append([x,y,w,h])
-            date = datetime.now()
-            notify[str(date)] = str([x,y,w,h])
-        frame1 = frame2
+            notify[str(datetime.now())] = str([x,y,w,h])
+        self.frame1 = self.frame2
         fps.update()
             
-        buf1 = cv2.flip(frame1, 0)
+        buf1 = cv2.flip(self.frame1, 0)
         buf = buf1.tobytes()
         image_texture = Texture.create(
-            size=(frame1.shape[1], frame1.shape[0]), colorfmt='bgr')
+            size=(self.frame1.shape[1], self.frame1.shape[0]), colorfmt='bgr')
         image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         self.texture = image_texture
 
     def update_Notify(self):
         return self.notify
 
-    def freeSpace(self):
+    def destroy(self):
         cv2.destroyAllWindows()
+
+    def release(self):
         self.capture.release()
 
 class Devices(Screen):
@@ -76,7 +76,7 @@ class Devices(Screen):
         
         
         super(Devices, self).__init__(**kwargs)
-        self.capture = doorBellApp(0)
+        self.capture = doorBellApp()
         self.cam = self.capture.available_dev()
         self.num = len(self.cam)
         layout = BoxLayout(orientation="vertical")
@@ -108,32 +108,51 @@ class Devices(Screen):
     def selectDev(self, instance):
         self.parent.current = 'main'
 
+    def read(self):
+        return self.capture.read()
+
+    def destroy(self):
+        cv2.destroyAllWindows()
+
+    def release(self):
+        self.capture.release()
+
+
 class Account(Screen):
 
     def __init__(self, **kwargs):
             
         super(Account, self).__init__(**kwargs)
-
-        pass 
+        pass
 
 class MainWindow(Screen):
     
     def __init__(self, **kwargs):
         
-            super(MainWindow, self).__init__(**kwargs)
+        super(MainWindow, self).__init__(**kwargs)
 
-            self.cols = GridLayout(cols = 1)
+        self.cols = GridLayout(cols = 1)
 
-            self.cam = kwargs = cv2.VideoCapture(0) #doorBellApp(0)
-            
-            self.cam = KivyCamera(capture=self.cam, fps=120)
-            self.add_widget(self.cam)
-            self.noti = self.cam.update_Notify()
+        self.capture = Devices()
+        
+        self.cam = KivyCamera(capture=self.capture, fps=120)
+        self.add_widget(self.cam)
+        self.capture.destroy()
+        #self.capture.release()
+        self.noti = self.cam.update_Notify()
 
     def menu_Switch(self, instance):
         self.parent.current = 'third'
     
-
+##class m(Screen, Image):
+##
+##    def __init__(self, capture, **kwargs):
+##        
+##        super(m, self).__init__(**kwargs)
+##
+##        self.add_widget(MainWindow(cv2.VideoCapture(0)))
+##        pass
+        
 class NotificationWindow(Screen):
 
     def __init__(self, **kwargs):

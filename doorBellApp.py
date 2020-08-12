@@ -6,7 +6,7 @@ from imutils.video import FPS
 
 
 class doorBellApp():
-    def __init__(self, d):
+    def __init__(self):
         
         self.inname = ''
         self.exname = []
@@ -14,7 +14,7 @@ class doorBellApp():
         devs = os.listdir('/dev')
         self.v = [int(dev[-1]) for dev in devs if dev.startswith('video')]
         self.v = sorted(self.v)
-        print(self.v)
+        #print(self.v)
         '''                   '''
         devs = os.listdir('/dev')
         self.v = []
@@ -23,9 +23,10 @@ class doorBellApp():
                 self.v.append(int(dev[-1]))
             self.exname.append(dev)
         ############
-        self.d = d
+        self.d = 0
         self.ava_dev = []
-        while True:
+        searching = True
+        while searching:
             self.cam = cv2.VideoCapture(self.d)
             ret, _ = self.cam.read()
             if not ret:
@@ -34,16 +35,15 @@ class doorBellApp():
                 self.ava_dev.append(self.d)
                 if self.d == 0:
                     self.inname = sys.platform.capitalize()
-                    break
+                    searching = False
                 self.exname = []
-            cap.release()
             self.d += 1
 
+        self.cam.read()
         if len(self.ava_dev) == 0:
             raise Exception('Something Went Wrong! ' +
                             sys.platform.capitalize() +
                             ' DEVICE COULD NOT CONNECT TO A CAMERA.')
-
     def read(self):
         return self.cam.read()
 
@@ -55,4 +55,11 @@ class doorBellApp():
 
     def set(self):
         return cv2.VideoCapture(0)
+
+    def destroy(self):
+        cv2.destroyAllWindows()
+
+    def release(self):
+        self.cam.release()
+
 

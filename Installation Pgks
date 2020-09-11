@@ -22,6 +22,13 @@ chmod -R 755 LCD-show
 cd LCD-show/
 
 sudo ./LCD35-show
+
+Revert LCD to hdmi
+chmod -R 755 LCD-show 
+
+cd LCD-show/ 
+
+sudo ./LCD-hdmi
 ###sudo killall python3###
 
 

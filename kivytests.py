@@ -131,11 +131,11 @@ class MainWindow(Screen):
 
         self.cols = BoxLayout(orientation="horizontal", spacing=-800)
 
-        self.capture = Devices()
+        self.capture = cv2.VideoCapture('http://10.0.0.249:5000/video_feed')#Devices()
         
         self.cam = KivyCamera(capture=self.capture, fps=120)
         self.add_widget(self.cam)
-        self.capture.destroy()
+        #self.capture.destroy()
         #self.capture.release()
 
     def menu_Switch(self, instance):
@@ -200,7 +200,6 @@ class NotificationWindow(Screen):
         self.go_back = Button(text='Go Back')
         self.go_back.bind(on_release=self.switch)
         self.inside.add_widget(self.go_back)
-
         self.go_back = Button(text='Menu')
         self.go_back.bind(on_release=self.menu_Switch)
         self.inside.add_widget(self.go_back)

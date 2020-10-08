@@ -24,6 +24,8 @@ import kivy
 import cv2
 import numpy as np
 import bluetooth
+import imutils
+import sys
 
 
 notify = {'No records':'',}
@@ -34,35 +36,51 @@ class KivyCamera(Image):
         self.capture = capture
         Clock.schedule_interval(self.update, 1.0 / fps)
         #self.notify
-
+    
     def update(self, dt):
         fps = FPS().start()
-        _, self.frame1 = self.capture.read()
-        _, self.frame2 = self.capture.read()
-        diff = cv2.absdiff(self.frame1, self.frame2)
-        gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5,5), 0)
-        _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
-        erode = cv2.erode(thresh.copy(), None, iterations=10)
-        dilated = cv2.dilate(erode, None, iterations=10)
-        contours, hier = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        if len(contours) != 0:
-            c = max(contours, key = cv2.contourArea)
-            x,y,w,h = cv2.boundingRect(c)
-            #self.notify.append([x,y,w,h])
-            rect = cv2.rectangle(self.frame2,(x,y),(x+w*2,y+h*2),(0,0,255),4)
-            notify[str(datetime.now())] = str([x,y,w,h])
-        self.frame1 = self.frame2
-        fps.update()
-            
+        self.frame1 = self.capture.read()[1]
         buf1 = cv2.flip(self.frame1, 0)
         buf = buf1.tobytes()
         image_texture = Texture.create(
             size=(self.frame1.shape[1], self.frame1.shape[0]), colorfmt='bgr')
         image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         self.texture = image_texture
-    
+        fps.update()
+        
+    '''
+    def update(self, dt):
+        #fps = FPS().start()
+        _, self.frame1 = self.capture.read()
+        _, self.frame2 = self.capture.read()
+        diff = cv2.absdiff(self.frame1, self.frame2)
+        gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5,5), 0)
+        _, thresh = cv2.threshold(blur, 127, 255, cv2.THRESH_BINARY)
+        erode = cv2.erode(thresh.copy(), None, iterations=10)
+        dilated = cv2.dilate(erode, None, iterations=10)
+        contours, hier = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+                c = max(contours, key = cv2.contourArea)
+                (x, y, w, h) = cv2.boundingRect(c)
+                cv2.rectangle(self.frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.putText(self.frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                            1, (0, 0, 255), 3) 
+        buf1 = cv2.flip(self.frame1, 0)
+        buf = buf1.tobytes()
+        image_texture = Texture.create(
+            size=(self.frame1.shape[1], self.frame1.shape[0]), colorfmt='bgr')
+        image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        self.texture = image_texture
+        '''
 
+    def recordStr(self):
+        #cv2.VideoWriter
+        return 'recording.....'
+
+    def recordEnd(self):
+        return 'recording ended'
+    
     def destroy(self):
         cv2.destroyAllWindows()
 
@@ -75,23 +93,18 @@ class Devices(Screen):
         
         
         super(Devices, self).__init__(**kwargs)
-        self.capture = doorBellApp()
-        self.cam = self.capture.available_dev()
-        self.num = len(self.cam)
+
         layout = BoxLayout(orientation="vertical")
-        self.devs = Label(text="Detected Devices: " +str(self.num))
-        layout.add_widget(self.devs)
-        if len(self.capture.inname)>0:
-            self.opt = Button(text=self.capture.inname)
+        try:
+            self.capture = cv2.VideoCapture('http://172.20.10.118:506/video_feed')
+            self.devs = Label(text="Detected Devices: " +str(1))
+            self.opt = Button(text='RPI')
             self.opt.bind(on_release=self.selectDev)
+            layout.add_widget(self.devs)
             layout.add_widget(self.opt)
-        elif len(self.capture.inname) == 0:#and len(self.capture.exname) == 0:
-            for i in self.capture.exname:
-                self.opt = Button(text=i)
-                self.opt.bind(on_release=self.selectDev)
-                layout.add_widget(self.opt)
-        else:
-            layout.add_widget(Label(text="No Devices Detected"))
+        except AttributeError:
+            raise "No Devices Detected"
+            self.devs.text="No Devices Detected"
             
         self.refresh = Button(text="Refresh")
         self.refresh.bind(on_release=self.refreshDevs)
@@ -115,7 +128,6 @@ class Devices(Screen):
     def release(self):
         self.capture.release()
 
-
 class Account(Screen):
 
     def __init__(self, **kwargs):
@@ -129,81 +141,49 @@ class MainWindow(Screen):
         
         super(MainWindow, self).__init__(**kwargs)
 
-        self.cols = BoxLayout(orientation="horizontal", spacing=-800)
+        self.cols = BoxLayout(orientation="vertical", spacing=-800)
+        self.box = BoxLayout(orientation="horizontal")
 
-        self.capture = cv2.VideoCapture('http://10.0.0.249:5000/video_feed')#Devices()
-        
+        #self.capture = cv2.VideoCapture('http://10.0.0.249:5000/video_feed')#Devices()
+        self.capture = Devices()#cv2.VideoCapture('http://172.20.10.118:5056/video_feed')#172.20.10.118
+
         self.cam = KivyCamera(capture=self.capture, fps=120)
         self.add_widget(self.cam)
+
+        self.strRec = Button(text='Record', size_hint=(.5,.1))
+        self.strRec.bind(on_release=self.strRecord)
+        self.box.add_widget(self.strRec)
+
+        self.endRec = Button(text='End Recording', size_hint=(.5,.1))
+        self.endRec.bind(on_release=self.endRecord)
+        self.box.add_widget(self.endRec)
+        
+        self.add_widget(self.box)
+        
+        self.codec = cv2.VideoWriter_fourcc(*'XVID')
+        self.output = cv2.VideoWriter('CAPTURE.avi', self.codec, 30, (640, 480))
+        self.rec = False
         #self.capture.destroy()
         #self.capture.release()
+        
 
     def menu_Switch(self, instance):
         self.parent.current = 'third'
+
+    def strRecord(self, instance):
+        print('recording')
+        self.record = True
+        #return self.cam.recordStr()
+
+    def endRecord(self, instance):
+        print('recording ended')
+        #return self.cam.recordEnd
     
         
 class NotificationWindow(Screen):
 
     def __init__(self, **kwargs):
         super(NotificationWindow, self).__init__(**kwargs)
-        
-##        self.inside = GridLayout()
-##        self.inside.cols = 1
-##
-##        self.notify = Button(id='how', text='Notification', height="50dp", size_hint_y= None)
-##        self.notify.bind(on_release=self.notify_pressed)
-##        self.inside.add_widget(self.notify)
-        
-        '''
-        self.label = Label(text='No records')
-        self.inside.add_widget(self.label)
-        self.label_one = Label(text='No records')
-        self.inside.add_widget(self.label_one)
-        self.label_two = Label(text='No records')
-        self.inside.add_widget(self.label_two)
-        self.label_three = Label(text='No records')
-        self.inside.add_widget(self.label_three)
-        self.label_four = Label(text='No records')
-        self.inside.add_widget(self.label_four)
-        
-        self.label_five = Label(text='No records')
-        self.inside.add_widget(self.label_five)
-        self.label_six = Label(text='No records')
-        self.inside.add_widget(self.label_six)
-        self.label_seven = Label(text='No records')
-        self.inside.add_widget(self.label_seven)
-        self.label_eight = Label(text='No records')
-        self.inside.add_widget(self.label_eight)
-        self.label_nine = Label(text='No records')
-        self.inside.add_widget(self.label_nine)
-        
-        self.label_ten = Label(text='No records')
-        self.inside.add_widget(self.label_ten)
-        self.label_eleven = Label(text='No records')
-        self.inside.add_widget(self.label_eleven)
-        self.label_twelve = Label(text='No records')
-        self.inside.add_widget(self.label_twelve)
-        self.label_thirteen = Label(text='No records')
-        self.inside.add_widget(self.label_thirteen)
-        self.label_fifteen = Label(text='No records')
-        self.inside.add_widget(self.label_fifteen)
-        
-        self.label_sixteen = Label(text='No records')
-        self.inside.add_widget(self.label_sixteen)
-        self.label_seventeen = Label(text='No records')
-        self.inside.add_widget(self.label_seventeen)
-        self.label_eighteen = Label(text='No records')
-        self.inside.add_widget(self.label_eighteen)
-        self.label_nineteen = Label(text='No records')
-        self.inside.add_widget(self.label_nineteen)
-        
-        self.go_back = Button(text='Go Back')
-        self.go_back.bind(on_release=self.switch)
-        self.inside.add_widget(self.go_back)
-        self.go_back = Button(text='Menu')
-        self.go_back.bind(on_release=self.menu_Switch)
-        self.inside.add_widget(self.go_back)
-        '''
 
         self.layout = BoxLayout(orientation="vertical", spacing=-200)
 
@@ -246,24 +226,7 @@ class NotificationWindow(Screen):
         self.label_two.text = str(key[count-2]) + ': '+ str(value[count-2])
         self.label_three.text = str(key[count-3]) + ': '+ str(value[count-3])
         self.label_four.text = str(key[count-4]) + ': '+ str(value[count-4])
-        '''
-        self.label_five.text = str(key[count-5]) + ': '+ str(value[count-5])
-        self.label_six.text = str(key[count-6]) + ': '+ str(value[count-6])
-        self.label_seven.text = str(key[count-7]) + ': '+ str(value[count-7])
-        self.label_eight.text = str(key[count-8]) + ': '+ str(value[count-8])
-        self.label_nine.text = str(key[count-9]) + ': '+ str(value[count-9])
         
-        self.label_ten.text = str(key[count-10]) + ': '+ str(value[count-10])
-        self.label_eleven.text = str(key[count-11]) + ': '+ str(value[count-11])
-        self.label_twelve.text = str(key[count-12]) + ': '+ str(value[count-12])
-        self.label_thirteen.text = str(key[count-13]) + ': '+ str(value[count-13])
-        self.label_fifteen.text = str(key[count-14]) + ': '+ str(value[count-14])
-        
-        self.label_sixteen.text = str(key[count-16]) + ': '+ str(value[count-16])
-        self.label_seventeen.text = str(key[count-17]) + ': '+ str(value[count-17])
-        self.label_eighteen.text = str(key[count-18]) + ': '+ str(value[count-18])
-        self.label_nineteen.text = str(key[count-19]) + ': '+ str(value[count-19])
-        '''
     def switch(self, instance):
         self.parent.current = 'main'
 

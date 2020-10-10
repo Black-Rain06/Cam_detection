@@ -1,0 +1,11 @@
+pip3.7 install opencv-python
+pip3.7 install imutils
+pip3.7 install kivy
+pip3.7 install netifaces
+pip3.7 install flask
+pip3.7 install flask-marshmallow
+pip3.7 install Flask-SQLAlchemy		
+pip3.7 install pillow
+pip3.7 install socket	
+python -m pip install docutils pygments pypiwin32 kivy.deps.sdl2 kivy.deps.glew; 
+python -m pip install kivy.deps.gstreamer

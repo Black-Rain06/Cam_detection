@@ -20,11 +20,10 @@ if plat == 'darwin':
 elif plat == 'win32':
     hostn =socket.gethostname()
     ipaddr = socket.gethostbyname(hostn)
-    print(ipaddr)
 else:
     ipaddr == netifaces.ifaddresses('en0')[netifaces.AF_INET][0]['addr']
 
-
+print(ipaddr)
 app = Flask(__name__)
 
 app.route('/')
@@ -52,17 +51,18 @@ def gen(camera):
                 c = max(contours, key = cv2.contourArea)
                 (x, y, w, h) = cv2.boundingRect(c)
                 cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.putText(frame1, "Status: {}".format('Movement'), (20, 40), cv2.FONT_HERSHEY_SIMPLEX,
                             1, (0, 0, 255), 3) 
         ret, jpeg = cv2.imencode('.jpg',frame1)
         if jpeg is not None:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
-
+        cv2.waitKey(1)
+        
 @app.route('/video_feed')
 def video_feed():
     return Response(gen(VideoStream(src=0).start()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', threaded=True)
+    app.run(host='0.0.0.0', port=6000, threaded=True)

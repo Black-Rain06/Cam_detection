@@ -27,6 +27,8 @@ import imutils
 import sys
 
 
+notify = {}
+#date = datetime.now()
 notify = {'No records':'',}
 
 class KivyCamera(Image):
@@ -35,14 +37,29 @@ class KivyCamera(Image):
         self.capture = capture
         Clock.schedule_interval(self.update, 1.0 / fps)
         self.codec = cv2.VideoWriter_fourcc(*'XVID')
-        self.output = cv2.VideoWriter('CAPTURE.avi', self.codec, 30, (640, 480))
-        #self.notify
+        self.output = cv2.VideoWriter('CAPTURE.mp4', self.codec, 22.0
+                                      ,(int(self.capture.get(3))
+                                        ,(int(self.capture.get(4))))
+                                      )
         self.rec = None
     
     def update(self, dt):
         fps = FPS().start()
         self.frame = self.capture.read()[1]
         if self.frame is not None:
+            gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+            blur = cv2.GaussianBlur(gray, (1,1), 0)
+            _, thresh = cv2.threshold(blur, 128, 255, cv2.THRESH_BINARY)
+            erode = cv2.erode(thresh.copy(), None, iterations=10)
+            dilated = cv2.dilate(erode, None, iterations=10)
+            contours, hier = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            for contour in contours:
+                    c = max(contours, key = cv2.contourArea)
+                    (x, y, w, h) = cv2.boundingRect(c)
+                    cv2.rectangle(self.frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    cv2.putText(self.frame, "Status: {}".format('Movement'), (10, 40), cv2.FONT_HERSHEY_SIMPLEX,
+                                1, (0, 0, 255), 3)
+                    notify[str(datetime.now())] = str([x,y,w,h])
             buf1 = cv2.flip(self.frame, 0)
             buf = buf1.tobytes()
             image_texture = Texture.create(
@@ -51,13 +68,15 @@ class KivyCamera(Image):
             self.texture = image_texture
             fps.update()
             if self.rec==True:
+                #cv2.imshow('capture', self.frame)
                 self.output.write(self.frame)
-            elif self.rec==False:
+            if self.rec==False:
                 self.output.release()
+        cv2.waitKey(1)
 
     def pic(self):
         print('picture taken kivycam')
-        return cv2.imshow('capture', self.capture.read()[1])
+        return cv2.imshow('capture', self.frame)
 
     def recordStr(self):
         #cv2.VideoWriter
@@ -71,7 +90,8 @@ class KivyCamera(Image):
 
     def release(self):
         self.capture.release()
-
+        
+'''
 class Devices(Screen):
 
     def __init__(self, **kwargs):
@@ -80,7 +100,7 @@ class Devices(Screen):
         super(Devices, self).__init__(**kwargs)
 
         layout = BoxLayout(orientation="vertical")
-        '''
+        
         try:
             self.capture = cv2.VideoCapture('http://10.0.0.178:5000/video_feed')
             self.devs = Label(text="Detected Devices: " +str(1))
@@ -91,8 +111,8 @@ class Devices(Screen):
         except AttributeError:
             raise "No Devices Detected"
             self.devs.text="No Devices Detected"
-        '''
-        self.capture = cv2.VideoCapture('http://172.16.0.10:5000/video_feed')
+        
+        self.capture = cv2.VideoCapture('http://172.16.0.6:6000/video_feed')
         self.devs = Label(text="Detected Devices: " +str(1))
         self.opt = Button(text='RPI')
         self.opt.bind(on_release=self.selectDev)
@@ -131,7 +151,7 @@ class Account(Screen):
             
         super(Account, self).__init__(**kwargs)
         pass
-
+'''
 class MainWindow(Screen):
     
     def __init__(self, **kwargs):
@@ -141,8 +161,9 @@ class MainWindow(Screen):
         self.cols = BoxLayout(orientation="vertical", spacing=-800)
         self.box = BoxLayout(orientation="horizontal")
 
-        #self.capture = cv2.VideoCapture('http://10.0.0.178:5000/video_feed')
-        self.capture = Devices().capture#cv2.VideoCapture('http://172.20.10.118:5056/video_feed')#172.20.10.118
+        self.capture = cv2.VideoCapture('http://172.16.0.6:6000/video_feed')
+        #self.capture = cv2.VideoCapture('http://172.16.0.10:6000/video_feed')
+        #self.capture = Devices().capture#cv2.VideoCapture('http://172.20.10.118:5056/video_feed')#172.20.10.118
 
         self.cam = KivyCamera(capture=self.capture, fps=120)
         self.add_widget(self.cam)
@@ -184,28 +205,18 @@ class MainWindow(Screen):
 
     def menu_Switch(self, instance):
         self.parent.current = 'third'
-    '''
-    def record_one_frame(self):
-        return self.output.write(self.cam.frame)
-    '''
     
     def strRecord(self, instance):
         print('recording')
         self.cam.rec = True
-        '''
-        self.rec=True
-        while self.rec==True:
-            output.write(self.cam.frame)
-            if self.endRecord:
-                output.release()
-            break
-        '''
+        #self.output.write(self.cam.frame)
         #return self.cam.recordStr()
 
     def endRecord(self, instance):
         print('recording ended')
         #self.output.release()
         self.cam.rec = False
+        #self.output.release()
         #return self.cam.recordEnd
     
         
@@ -215,6 +226,7 @@ class NotificationWindow(Screen):
         super(NotificationWindow, self).__init__(**kwargs)
 
         self.layout = BoxLayout(orientation="vertical", spacing=-200)
+        '''
 
         self.label = Label(text='No records')
         self.layout.add_widget(self.label)
@@ -226,6 +238,7 @@ class NotificationWindow(Screen):
         self.layout.add_widget(self.label_three)
         self.label_four = Label(text='No records')
         self.layout.add_widget(self.label_four)
+        '''
         
         self.layout2 = BoxLayout(orientation="horizontal")
         
@@ -249,12 +262,16 @@ class NotificationWindow(Screen):
         key = list(notify.keys())
         value = list(notify.values())
         count = len(notify)
-        
-        self.label.text = str(key[-1]) + ': '+ str(value[-1])
-        self.label_one.text = str(key[count-1]) + ': '+ str(value[count-1])
-        self.label_two.text = str(key[count-2]) + ': '+ str(value[count-2])
-        self.label_three.text = str(key[count-3]) + ': '+ str(value[count-3])
-        self.label_four.text = str(key[count-4]) + ': '+ str(value[count-4])
+        print(count)
+        for i in range(count, count-10, -1):
+            self.label = Label(text=str(key[i-1]) + ': '+ str(value[i-1]))
+            self.layout.add_widget(self.label)
+
+##        self.label.text = str(key[-1]) + ': '+ str(value[1])
+##        self.label_one.text = str(key[count-1]) + ': '+ str(value[2])
+##        self.label_two.text = str(key[count-2]) + ': '+ str(value[count-2])
+##        #self.label_three.text = str(key[count-3]) + ': '+ str(value[count-3])
+        #self.label_four.text = str(key[count-4]) + ': '+ str(value[count-4])
         
     def switch(self, instance):
         self.parent.current = 'main'

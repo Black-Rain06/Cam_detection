@@ -1,5 +1,5 @@
-
 WindowManager:
+    Devices:
     MainWindow:
     NotificationWindow:
     MenuWindow:
@@ -7,18 +7,10 @@ WindowManager:
 <MainWindow>:
     name: "main"
 
-
-
     GridLayout:
         cols: 2
         height: "50dp"
         size_hint_y: None
-        Button:
-            text: "Notifications"
-            on_release: app.root.current = "second"
-
-        Button:
-            text: "Menu"
 
 <NotificationWindow>:
     name: "second"

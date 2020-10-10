@@ -1,4 +1,6 @@
 # coding:utf-8
+import kivy
+kivy.require('1.11.1')
 from kivy.app import App
 from kivy.uix.image import Image
 from kivy.clock import Clock
@@ -17,13 +19,10 @@ from kivy.uix.widget import Widget
 from kivy.properties import*
 
 from doorBellApp import doorBellApp
-
-
 from datetime import datetime
 import kivy 
 import cv2
 import numpy as np
-import bluetooth
 import imutils
 import sys
 
@@ -35,44 +34,30 @@ class KivyCamera(Image):
         super(KivyCamera, self).__init__(**kwargs)
         self.capture = capture
         Clock.schedule_interval(self.update, 1.0 / fps)
+        self.codec = cv2.VideoWriter_fourcc(*'XVID')
+        self.output = cv2.VideoWriter('CAPTURE.avi', self.codec, 30, (640, 480))
         #self.notify
+        self.rec = None
     
     def update(self, dt):
         fps = FPS().start()
-        self.frame1 = self.capture.read()[1]
-        buf1 = cv2.flip(self.frame1, 0)
-        buf = buf1.tobytes()
-        image_texture = Texture.create(
-            size=(self.frame1.shape[1], self.frame1.shape[0]), colorfmt='bgr')
-        image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-        self.texture = image_texture
-        fps.update()
-        
-    '''
-    def update(self, dt):
-        #fps = FPS().start()
-        _, self.frame1 = self.capture.read()
-        _, self.frame2 = self.capture.read()
-        diff = cv2.absdiff(self.frame1, self.frame2)
-        gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5,5), 0)
-        _, thresh = cv2.threshold(blur, 127, 255, cv2.THRESH_BINARY)
-        erode = cv2.erode(thresh.copy(), None, iterations=10)
-        dilated = cv2.dilate(erode, None, iterations=10)
-        contours, hier = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        for contour in contours:
-                c = max(contours, key = cv2.contourArea)
-                (x, y, w, h) = cv2.boundingRect(c)
-                cv2.rectangle(self.frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                cv2.putText(self.frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
-                            1, (0, 0, 255), 3) 
-        buf1 = cv2.flip(self.frame1, 0)
-        buf = buf1.tobytes()
-        image_texture = Texture.create(
-            size=(self.frame1.shape[1], self.frame1.shape[0]), colorfmt='bgr')
-        image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-        self.texture = image_texture
-        '''
+        self.frame = self.capture.read()[1]
+        if self.frame is not None:
+            buf1 = cv2.flip(self.frame, 0)
+            buf = buf1.tobytes()
+            image_texture = Texture.create(
+                size=(self.frame.shape[1], self.frame.shape[0]), colorfmt='bgr')
+            image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+            self.texture = image_texture
+            fps.update()
+            if self.rec==True:
+                self.output.write(self.frame)
+            elif self.rec==False:
+                self.output.release()
+
+    def pic(self):
+        print('picture taken kivycam')
+        return cv2.imshow('capture', self.capture.read()[1])
 
     def recordStr(self):
         #cv2.VideoWriter
@@ -95,8 +80,9 @@ class Devices(Screen):
         super(Devices, self).__init__(**kwargs)
 
         layout = BoxLayout(orientation="vertical")
+        '''
         try:
-            self.capture = cv2.VideoCapture('http://172.20.10.118:506/video_feed')
+            self.capture = cv2.VideoCapture('http://10.0.0.178:5000/video_feed')
             self.devs = Label(text="Detected Devices: " +str(1))
             self.opt = Button(text='RPI')
             self.opt.bind(on_release=self.selectDev)
@@ -105,6 +91,13 @@ class Devices(Screen):
         except AttributeError:
             raise "No Devices Detected"
             self.devs.text="No Devices Detected"
+        '''
+        self.capture = cv2.VideoCapture('http://172.16.0.10:5000/video_feed')
+        self.devs = Label(text="Detected Devices: " +str(1))
+        self.opt = Button(text='RPI')
+        self.opt.bind(on_release=self.selectDev)
+        layout.add_widget(self.devs)
+        layout.add_widget(self.opt)
             
         self.refresh = Button(text="Refresh")
         self.refresh.bind(on_release=self.refreshDevs)
@@ -121,6 +114,10 @@ class Devices(Screen):
 
     def read(self):
         return self.capture.read()
+
+    def pic(self):
+        print('picture taken devices')
+        return cv2.imshow('capture', self.capture.read()[1])
 
     def destroy(self):
         cv2.destroyAllWindows()
@@ -144,39 +141,71 @@ class MainWindow(Screen):
         self.cols = BoxLayout(orientation="vertical", spacing=-800)
         self.box = BoxLayout(orientation="horizontal")
 
-        #self.capture = cv2.VideoCapture('http://10.0.0.249:5000/video_feed')#Devices()
-        self.capture = Devices()#cv2.VideoCapture('http://172.20.10.118:5056/video_feed')#172.20.10.118
+        #self.capture = cv2.VideoCapture('http://10.0.0.178:5000/video_feed')
+        self.capture = Devices().capture#cv2.VideoCapture('http://172.20.10.118:5056/video_feed')#172.20.10.118
 
         self.cam = KivyCamera(capture=self.capture, fps=120)
         self.add_widget(self.cam)
+
+        self.noti = Button(text='Alerts', size_hint=(.5,.1))
+        self.noti.bind(on_release=self.alerts)
+        self.box.add_widget(self.noti)
 
         self.strRec = Button(text='Record', size_hint=(.5,.1))
         self.strRec.bind(on_release=self.strRecord)
         self.box.add_widget(self.strRec)
 
+        self.pic = Button(text='Capture', size_hint=(.5,.1))
+        self.pic.bind(on_release=self.img)
+        self.box.add_widget(self.pic)
+
         self.endRec = Button(text='End Recording', size_hint=(.5,.1))
         self.endRec.bind(on_release=self.endRecord)
         self.box.add_widget(self.endRec)
+
+        self.menu = Button(text='Menu', size_hint=(.5,.1))
+        self.menu.bind(on_release=self.dash)
+        self.box.add_widget(self.menu)
         
         self.add_widget(self.box)
         
-        self.codec = cv2.VideoWriter_fourcc(*'XVID')
-        self.output = cv2.VideoWriter('CAPTURE.avi', self.codec, 30, (640, 480))
-        self.rec = False
         #self.capture.destroy()
         #self.capture.release()
-        
+
+    def alerts(self, instance):
+        self.parent.current = 'second'
+
+    def img(self, instance):
+        return self.cam.pic()
+
+    def dash(self, instance):
+        print('in menu')
+        pass
 
     def menu_Switch(self, instance):
         self.parent.current = 'third'
-
+    '''
+    def record_one_frame(self):
+        return self.output.write(self.cam.frame)
+    '''
+    
     def strRecord(self, instance):
         print('recording')
-        self.record = True
+        self.cam.rec = True
+        '''
+        self.rec=True
+        while self.rec==True:
+            output.write(self.cam.frame)
+            if self.endRecord:
+                output.release()
+            break
+        '''
         #return self.cam.recordStr()
 
     def endRecord(self, instance):
         print('recording ended')
+        #self.output.release()
+        self.cam.rec = False
         #return self.cam.recordEnd
     
         

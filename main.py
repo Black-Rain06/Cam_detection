@@ -3,20 +3,24 @@
 import cv2
 import netifaces
 import sys
+import socket
 
 from flask import Flask, render_template, Response
 from imutils.video import VideoStream
 
 
 #print(cv2.__version__)
-assert(cv2.__version__=='4.3.0')
+#assert(cv2.__version__=='4.3.0')
+
 
 plat = sys.platform
 
 if plat == 'darwin':
     ipaddr = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]['addr']
-elif play == 'win32':
-    ipaddr = netifaces.ifaddresses('en0')[netifaces.AF_INET][0]['addr']
+elif plat == 'win32':
+    hostn =socket.gethostname()
+    ipaddr = socket.gethostbyname(hostn)
+    print(ipaddr)
 else:
     ipaddr == netifaces.ifaddresses('en0')[netifaces.AF_INET][0]['addr']
 
@@ -34,12 +38,13 @@ def ip():
 
 def gen(camera):
     while True:
-        if camera.stopped:
-            break
         frame1 = camera.read()
+        #frame2 = camera.read()
+        #diff = cv2.absdiff(frame1, frame2)
+        #if frame1 is not None:
         gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5,5), 0)
-        _, thresh = cv2.threshold(blur, 127, 255, cv2.THRESH_BINARY)
+        blur = cv2.GaussianBlur(gray, (1,1), 0)
+        _, thresh = cv2.threshold(blur, 128, 255, cv2.THRESH_BINARY)
         erode = cv2.erode(thresh.copy(), None, iterations=10)
         dilated = cv2.dilate(erode, None, iterations=10)
         contours, hier = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -53,8 +58,6 @@ def gen(camera):
         if jpeg is not None:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
-        else:
-            print("frame is none")
 
 @app.route('/video_feed')
 def video_feed():
@@ -62,4 +65,4 @@ def video_feed():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5056, threaded=True)
+    app.run(host='0.0.0.0', threaded=True)
